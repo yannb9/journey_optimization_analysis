@@ -81,7 +81,7 @@ export default function VerticalTimeline({ interactions, selectedIndex, onSelect
           {selectedIndex > 0 && (
             <path
               d="M 64 0 Q 99 75 99 150"
-              stroke="#adb5bd"
+              stroke="rgb(148, 163, 184)"
               strokeWidth="3"
               fill="none"
               strokeLinecap="round"
@@ -130,7 +130,7 @@ export default function VerticalTimeline({ interactions, selectedIndex, onSelect
                   className={cn(
                     "relative z-10 w-3 h-3 rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background absolute",
                     isSelected
-                      ? "scale-200"
+                      ? "scale-150"
                       : isPassed
                         ? "bg-primary/60 border-primary hover:bg-primary hover:border-primary"
                         : "bg-background border-border hover:border-primary hover:bg-muted",
@@ -139,8 +139,8 @@ export default function VerticalTimeline({ interactions, selectedIndex, onSelect
                     left: index === 1 ? `calc(50% + ${circleOffset.x}px)` : "50%",
                     top: "50%",
                     transform: "translate(-50%, -50%)",
-                    backgroundColor: isSelected ? "#495057" : undefined,
-                    borderColor: isSelected ? "#adb5bd" : undefined,
+                    backgroundColor: isSelected ? "rgb(0, 110, 83)" : undefined,
+                    borderColor: isSelected ? "rgb(0, 110, 83)" : undefined,
                   }}
                 >
                   <span className="sr-only">Go to interaction {interaction.interactionNumber}</span>
