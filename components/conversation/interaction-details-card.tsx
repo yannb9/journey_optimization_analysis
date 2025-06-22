@@ -116,7 +116,7 @@ export default function InteractionDetailsCard({
   }
 
   return (
-    <div className="fixed right-4 top-1/2 transform -translate-y-1/2 w-80">
+    <div className="fixed right-4 top-1/2 transform -translate-y-1/2 w-[30%]">
       <AnimatePresence mode="wait">
         <motion.div
           key={`${sessionId}-${interactionNumber}`}

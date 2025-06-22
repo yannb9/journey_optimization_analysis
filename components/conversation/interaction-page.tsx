@@ -59,22 +59,22 @@ export default function InteractionPage({
           exit="out"
           variants={pageVariants}
           transition={pageTransition}
-          className="w-96 px-8 py-12 flex flex-col justify-center"
+          className="w-[30%] px-6 py-8 flex flex-col justify-center"
         >
           <div className="w-full">
             {/* Conversation Content */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Customer Message */}
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <h3 className="font-semibold text-primary">Customer</h3>
-                <p className="text-foreground/90 leading-relaxed">{interaction.customerMessage}</p>
+                <p className="text-sm text-foreground/90 leading-relaxed">{interaction.customerMessage}</p>
               </div>
 
               {/* Agent Messages */}
               {interaction.agentMessages.map((message, index) => (
-                <div key={index} className="space-y-2">
+                <div key={index} className="space-y-1">
                   <h3 className="font-semibold text-muted-foreground">AI Agent</h3>
-                  <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap">{message}</p>
+                  <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{message}</p>
                 </div>
               ))}
             </div>
@@ -96,8 +96,6 @@ export default function InteractionPage({
                 <ChevronLeft className="w-4 h-4" />
                 Previous
               </button>
-
-              <div className="text-xs text-muted-foreground">Step {interaction.interactionNumber}</div>
 
               <button
                 onClick={(e) => {
