@@ -1,19 +1,44 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { AnimatePresence } from "framer-motion"
 import InteractionPage from "./conversation/interaction-page"
 import InteractionDetailsCard from "./conversation/interaction-details-card"
 import VerticalTimeline from "./conversation/vertical-timeline"
 import ConversationSelector from "./conversation/conversation-selector"
 import { useConversationData } from "@/hooks/use-conversation-data"
+import { useSearchParams, useRouter } from "next/navigation"
 
 const resultOptions = ["success", "pending", "failed", "in_progress"]
 
 export default function ConversationFlow() {
   const { conversations, loading, error } = useConversationData()
-  const [selectedConversationIndex, setSelectedConversationIndex] = useState(0)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Get session_id from URL
+  const urlSessionId = searchParams.get("session_id")
+
+  // Find conversation index based on URL session_id
+  const selectedConversationIndex = useMemo(() => {
+    if (!urlSessionId || conversations.length === 0) return 0
+    const index = conversations.findIndex((conv) => conv.session_id === urlSessionId)
+    return index >= 0 ? index : 0
+  }, [urlSessionId, conversations])
+
   const [selectedInteractionIndex, setSelectedInteractionIndex] = useState(0)
+
+  // Update URL when conversation changes
+  const updateUrl = (sessionId: string) => {
+    const url = new URL(window.location.href)
+    url.searchParams.set("session_id", sessionId)
+    router.push(url.pathname + url.search, { scroll: false })
+  }
+
+  // Reset interaction index when conversation changes
+  useEffect(() => {
+    setSelectedInteractionIndex(0)
+  }, [selectedConversationIndex])
 
   const selectedConversation = conversations[selectedConversationIndex]
   const sessionId = selectedConversation?.session_id || selectedConversation?.id || "Unknown"
@@ -123,23 +148,36 @@ export default function ConversationFlow() {
   }
 
   const handleConversationChange = (index) => {
-    setSelectedConversationIndex(index)
-    setSelectedInteractionIndex(0)
+    const conversation = conversations[index]
+    if (conversation?.session_id) {
+      updateUrl(conversation.session_id)
+    }
   }
 
   const handlePreviousConversation = () => {
     if (selectedConversationIndex > 0) {
-      setSelectedConversationIndex(selectedConversationIndex - 1)
-      setSelectedInteractionIndex(0)
+      const conversation = conversations[selectedConversationIndex - 1]
+      if (conversation?.session_id) {
+        updateUrl(conversation.session_id)
+      }
     }
   }
 
   const handleNextConversation = () => {
     if (selectedConversationIndex < conversations.length - 1) {
-      setSelectedConversationIndex(selectedConversationIndex + 1)
-      setSelectedInteractionIndex(0)
+      const conversation = conversations[selectedConversationIndex + 1]
+      if (conversation?.session_id) {
+        updateUrl(conversation.session_id)
+      }
     }
   }
+
+  // Auto-select first conversation if no URL param is set
+  useEffect(() => {
+    if (!urlSessionId && conversations.length > 0 && conversations[0]?.session_id) {
+      updateUrl(conversations[0].session_id)
+    }
+  }, [conversations, urlSessionId])
 
   if (loading) {
     return (
