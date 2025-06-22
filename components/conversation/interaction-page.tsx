@@ -59,13 +59,13 @@ export default function InteractionPage({
           exit="out"
           variants={pageVariants}
           transition={pageTransition}
-          className="w-96 px-8 py-12 flex flex-col justify-center"
+          className="w-[50%] px-8 py-12 flex flex-col justify-center"
         >
           <div className="w-full">
             {/* Conversation Content */}
             <div className="space-y-6">
               {/* Customer Message */}
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <h3 className="font-semibold text-primary">Customer</h3>
                 <p className="text-foreground/90 leading-relaxed">{interaction.customerMessage}</p>
               </div>
@@ -97,7 +97,7 @@ export default function InteractionPage({
                 Previous
               </button>
 
-              <div className="text-xs text-muted-foreground">Step {interaction.interactionNumber}</div>
+              {/* <div className="text-xs text-muted-foreground">Step {interaction.interactionNumber}</div> */}
 
               <button
                 onClick={(e) => {
