@@ -1,7 +1,9 @@
 "use client"
-import { ChevronDown, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react"
+import { useState } from "react"
+import type React from "react"
+
+import { ChevronDown, MessageSquare, ChevronLeft, ChevronRight, Copy, ExternalLink, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface ConversationSelectorProps {
   conversations: any[]
@@ -11,25 +13,77 @@ interface ConversationSelectorProps {
 
 export default function ConversationSelector({ conversations, selectedIndex, onSelect }: ConversationSelectorProps) {
   const selectedConversation = conversations[selectedIndex]
+  const [isOpen, setIsOpen] = useState(false)
+  const [copiedSessionId, setCopiedSessionId] = useState<string | null>(null)
+
+  if (!selectedConversation) {
+    return null
+  }
 
   const formatConversationTitle = (conversation: any, index: number) => {
     return `Session: ${conversation.session_id} | ID: ${conversation.id}`
   }
 
   const goToPrevious = () => {
-    console.log("Previous clicked, current index:", selectedIndex)
     if (selectedIndex > 0) {
-      console.log("Going to index:", selectedIndex - 1)
-      onSelect(selectedIndex - 1)
+      const prevConversation = conversations[selectedIndex - 1]
+      if (prevConversation?.session_id) {
+        // Update URL instead of calling onSelect directly
+        const url = new URL(window.location.href)
+        url.searchParams.set("session_id", prevConversation.session_id)
+        window.history.pushState({}, "", url.pathname + url.search)
+        // Trigger a popstate event to notify the main component
+        window.dispatchEvent(new PopStateEvent("popstate"))
+      }
     }
   }
 
   const goToNext = () => {
-    console.log("Next clicked, current index:", selectedIndex)
     if (selectedIndex < conversations.length - 1) {
-      console.log("Going to index:", selectedIndex + 1)
-      onSelect(selectedIndex + 1)
+      const nextConversation = conversations[selectedIndex + 1]
+      if (nextConversation?.session_id) {
+        // Update URL instead of calling onSelect directly
+        const url = new URL(window.location.href)
+        url.searchParams.set("session_id", nextConversation.session_id)
+        window.history.pushState({}, "", url.pathname + url.search)
+        // Trigger a popstate event to notify the main component
+        window.dispatchEvent(new PopStateEvent("popstate"))
+      }
     }
+  }
+
+  const handleCopyLink = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const baseUrl = window.location.origin + window.location.pathname
+    const shareableUrl = `${baseUrl}?session_id=${sessionId}`
+
+    try {
+      await navigator.clipboard.writeText(shareableUrl)
+      setCopiedSessionId(sessionId)
+      setTimeout(() => setCopiedSessionId(null), 2000)
+    } catch (err) {
+      console.error("Failed to copy URL:", err)
+    }
+  }
+
+  const handleOpenInNewTab = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const baseUrl = window.location.origin + window.location.pathname
+    const shareableUrl = `${baseUrl}?session_id=${sessionId}`
+    window.open(shareableUrl, "_blank")
+  }
+
+  const handleConversationSelect = (index: number) => {
+    const conversation = conversations[index]
+    if (conversation?.session_id) {
+      // Update URL instead of calling onSelect directly
+      const url = new URL(window.location.href)
+      url.searchParams.set("session_id", conversation.session_id)
+      window.history.pushState({}, "", url.pathname + url.search)
+      // Trigger a popstate event to notify the main component
+      window.dispatchEvent(new PopStateEvent("popstate"))
+    }
+    setIsOpen(false)
   }
 
   // Group conversations by session_id for better display
@@ -52,52 +106,85 @@ export default function ConversationSelector({ conversations, selectedIndex, onS
       </Button>
 
       {/* Conversation Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
-            <span className="max-w-64 truncate">{formatConversationTitle(selectedConversation, selectedIndex)}</span>
-            <span className="text-xs text-muted-foreground">
-              ({selectedIndex + 1}/{conversations.length})
-            </span>
-            <ChevronDown className="w-4 h-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-96 max-h-80 overflow-y-auto">
-          {Object.entries(groupedConversations).map(([sessionId, sessionConversations]) => (
-            <div key={sessionId}>
-              <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-muted/50">
-                Session: {sessionId}
-              </div>
-              {sessionConversations.map((conversation) => (
-                <DropdownMenuItem
-                  key={conversation.id}
-                  onClick={() => onSelect(conversation.originalIndex)}
-                  className={`cursor-pointer ml-2 ${conversation.originalIndex === selectedIndex ? "bg-accent" : ""}`}
-                >
-                  <div className="flex flex-col gap-1 w-full">
-                    <span className="font-medium">ID: {conversation.id}</span>
-                    {conversation.conversation_history && conversation.conversation_history.length > 0 && (
-                      <span className="text-xs text-muted-foreground truncate">
-                        {(() => {
-                          const firstMessage = conversation.conversation_history[0]
-                          if (firstMessage?.customer) return firstMessage.customer
-                          if (firstMessage?.ai_agent) return firstMessage.ai_agent
-                          if (firstMessage?.content) return firstMessage.content
-                          if (firstMessage?.text) return firstMessage.text
-                          if (firstMessage?.message) return firstMessage.message
-                          if (firstMessage?.user) return firstMessage.user
-                          return "No preview available"
-                        })()}
-                      </span>
-                    )}
+      <div className="relative">
+        <Button variant="outline" className="flex items-center gap-2 min-w-0" onClick={() => setIsOpen(!isOpen)}>
+          <MessageSquare className="w-4 h-4 flex-shrink-0" />
+          <span className="max-w-64 truncate">{formatConversationTitle(selectedConversation, selectedIndex)}</span>
+          <span className="text-xs text-muted-foreground flex-shrink-0">
+            ({selectedIndex + 1}/{conversations.length})
+          </span>
+          <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        </Button>
+
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+
+            {/* Dropdown Content */}
+            <div className="absolute top-full left-0 mt-1 w-96 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-50">
+              {Object.entries(groupedConversations).map(([sessionId, sessionConversations]) => (
+                <div key={sessionId}>
+                  <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 flex items-center justify-between border-b">
+                    <span>Session: {sessionId}</span>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0"
+                        onClick={(e) => handleCopyLink(sessionId, e)}
+                        title="Copy shareable link"
+                      >
+                        {copiedSessionId === sessionId ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0"
+                        onClick={(e) => handleOpenInNewTab(sessionId, e)}
+                        title="Open in new tab"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                </DropdownMenuItem>
+                  {sessionConversations.map((conversation) => (
+                    <div
+                      key={conversation.id}
+                      onClick={() => handleConversationSelect(conversation.originalIndex)}
+                      className={`cursor-pointer px-4 py-2 hover:bg-gray-100 border-b border-gray-100 ${
+                        conversation.originalIndex === selectedIndex ? "bg-blue-50 border-blue-200" : ""
+                      }`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-sm">ID: {conversation.id}</span>
+                        {conversation.conversation_history && conversation.conversation_history.length > 0 && (
+                          <span className="text-xs text-gray-500 truncate">
+                            {(() => {
+                              const firstMessage = conversation.conversation_history[0]
+                              if (firstMessage?.customer) return firstMessage.customer
+                              if (firstMessage?.ai_agent) return firstMessage.ai_agent
+                              if (firstMessage?.content) return firstMessage.content
+                              if (firstMessage?.text) return firstMessage.text
+                              if (firstMessage?.message) return firstMessage.message
+                              if (firstMessage?.user) return firstMessage.user
+                              return "No preview available"
+                            })()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </>
+        )}
+      </div>
 
       {/* Next Button */}
       <Button

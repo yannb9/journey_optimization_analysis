@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import {
   Hash,
   Clock,
@@ -16,8 +17,12 @@ import {
   BarChart3,
   Timer,
   Package,
+  Copy,
+  ExternalLink,
+  Check,
 } from "lucide-react"
 import { useState } from "react"
+import { useUrlParams } from "@/hooks/use-url-params"
 
 const cardVariants = {
   initial: {
@@ -48,7 +53,9 @@ export default function InteractionDetailsCard({
   interactionNumber,
   conversationData,
 }: InteractionDetailsCardProps) {
+  const { generateShareableUrl } = useUrlParams()
   const [selectedBatch, setSelectedBatch] = useState<{ title: string; data: any } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const getStatusConfig = (status) => {
     switch (status?.toLowerCase()) {
@@ -78,31 +85,23 @@ export default function InteractionDetailsCard({
   const StatusIcon = statusConfig.icon
 
   const formatJourneys = (journeys) => {
-    console.log("Raw journeys data:", journeys) // Debug log
-
     if (!journeys) return "N/A"
 
     if (Array.isArray(journeys)) {
       if (journeys.length === 0) return "None"
 
-      // Extract titles from journey objects or use the values directly
       const titles = journeys.map((journey) => {
         if (typeof journey === "object" && journey !== null) {
           if (journey.title) return journey.title
           if (journey.name) return journey.name
-          // If it's an object but no title/name, return the journey as string
           return String(journey)
         }
-        // If it's a primitive value, convert to string
         return String(journey)
       })
 
-      const result = titles.join(", ")
-      console.log("Formatted result:", result) // Debug log
-      return result
+      return titles.join(", ")
     }
 
-    // Handle single object
     if (typeof journeys === "object" && journeys !== null) {
       if (journeys.title) return journeys.title
       if (journeys.name) return journeys.name
@@ -132,12 +131,28 @@ export default function InteractionDetailsCard({
     return data
   }
 
+  const handleCopySessionLink = async () => {
+    const shareableUrl = generateShareableUrl(sessionId)
+    try {
+      await navigator.clipboard.writeText(shareableUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy URL:", err)
+    }
+  }
+
+  const handleOpenInNewTab = () => {
+    const shareableUrl = generateShareableUrl(sessionId)
+    window.open(shareableUrl, "_blank")
+  }
+
   const hasBatch1 = conversationData?.batch_1_data
   const hasBatch2 =
     conversationData?.batch_2_data && conversationData.batch_2_data !== "" && conversationData.batch_2_data !== null
 
   return (
-    <div className="fixed right-4 top-1/2 transform -translate-y-1/2 w-80">
+    <div className="fixed right-4 top-1/2 transform -translate-y-1/2 w-[30%]">
       <AnimatePresence mode="wait">
         <motion.div
           key={`${sessionId}-${interactionNumber}`}
@@ -152,14 +167,34 @@ export default function InteractionDetailsCard({
               <CardTitle className="text-lg">Journey Analysis Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Session ID */}
+              {/* Session ID with Share Options */}
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md border bg-muted flex items-center justify-center">
                   <Hash className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground">Session ID</p>
-                  <p className="font-mono text-sm font-semibold">{sessionId}</p>
+                  <p className="font-mono text-sm font-semibold truncate">{sessionId}</p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={handleCopySessionLink}
+                    title="Copy shareable link"
+                  >
+                    {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={handleOpenInNewTab}
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
 

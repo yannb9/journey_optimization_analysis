@@ -1,47 +1,67 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { AnimatePresence } from "framer-motion"
 import InteractionPage from "./conversation/interaction-page"
 import InteractionDetailsCard from "./conversation/interaction-details-card"
 import VerticalTimeline from "./conversation/vertical-timeline"
 import ConversationSelector from "./conversation/conversation-selector"
 import { useConversationData } from "@/hooks/use-conversation-data"
+import { useSearchParams, useRouter } from "next/navigation"
 
 const resultOptions = ["success", "pending", "failed", "in_progress"]
 
 export default function ConversationFlow() {
+  /* ---------- data ---------- */
   const { conversations, loading, error } = useConversationData()
-  const [selectedConversationIndex, setSelectedConversationIndex] = useState(0)
-  const [selectedInteractionIndex, setSelectedInteractionIndex] = useState(0)
+
+  /* ---------- URL handling ---------- */
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const urlSessionId = searchParams.get("session_id") ?? undefined
+
+  /* ---------- which conversation is selected? ---------- */
+  const selectedConversationIndex = useMemo(() => {
+    if (!urlSessionId) return 0
+    const idx = conversations.findIndex((c) => c.session_id === urlSessionId)
+    return idx >= 0 ? idx : 0
+  }, [urlSessionId, conversations])
 
   const selectedConversation = conversations[selectedConversationIndex]
-  const sessionId = selectedConversation?.session_id || selectedConversation?.id || "Unknown"
+  const sessionId = selectedConversation?.session_id ?? "unknown"
 
+  /* ---------- helper to push session_id into the URL ---------- */
+  const setSessionIdInUrl = (id: string) => {
+    const url = new URL(window.location.href)
+    url.searchParams.set("session_id", id)
+    router.push(url.pathname + url.search, { scroll: false })
+  }
+
+  /* ---------- interaction (message‐group) processing ---------- */
   const groupedInteractions = useMemo(() => {
-    if (!selectedConversation?.conversation_history) {
-      console.log("No conversation_history found for selected conversation")
-      return []
-    }
+    if (!selectedConversation?.conversation_history) return []
 
-    const conversationData = selectedConversation.conversation_history
-    console.log("Processing conversation_history:", conversationData)
+    const records = selectedConversation.conversation_history
+    if (!Array.isArray(records) || records.length === 0) return []
 
-    if (!Array.isArray(conversationData) || conversationData.length === 0) {
-      console.log("conversation_history is not a valid array or is empty")
-      return []
-    }
+    const groups: {
+      customerMessage: string
+      agentMessages: string[]
+      interactionNumber: number
+      result: string
+      timestamp: string
+    }[] = []
 
-    const groups = []
-    let currentGroup = null
+    let currentGroup: (typeof groups)[number] | null = null
 
-    conversationData.forEach((item, index) => {
-      console.log(`Processing message ${index}:`, item)
+    records.forEach((item, idx) => {
+      let speaker: "customer" | "ai_agent" | undefined
+      let message: string | undefined
 
-      let speaker, message
-
-      if (typeof item === "object" && item !== null) {
-        // Try different possible formats
+      if (typeof item === "string") {
+        speaker = idx % 2 === 0 ? "customer" : "ai_agent"
+        message = item
+      } else if (typeof item === "object" && item !== null) {
         if (item.customer) {
           speaker = "customer"
           message = item.customer
@@ -51,51 +71,13 @@ export default function ConversationFlow() {
         } else if (item.role && item.content) {
           speaker = item.role === "user" || item.role === "customer" ? "customer" : "ai_agent"
           message = item.content
-        } else if (item.type && item.text) {
-          speaker = item.type === "user" || item.type === "customer" ? "customer" : "ai_agent"
-          message = item.text
-        } else if (item.sender && item.message) {
-          speaker = item.sender === "user" || item.sender === "customer" ? "customer" : "ai_agent"
-          message = item.message
-        } else if (item.from && item.text) {
-          speaker = item.from === "user" || item.from === "customer" ? "customer" : "ai_agent"
-          message = item.text
-        } else if (item.user && item.assistant) {
-          // Handle format where both user and assistant are in same object
-          if (item.user) {
-            if (currentGroup) {
-              groups.push(currentGroup)
-            }
-            currentGroup = {
-              customerMessage: item.user,
-              agentMessages: [],
-              interactionNumber: groups.length + 1,
-              result: resultOptions[Math.floor(Math.random() * resultOptions.length)],
-              timestamp: new Date().toISOString(),
-            }
-          }
-          if (item.assistant && currentGroup) {
-            currentGroup.agentMessages.push(item.assistant)
-          }
-          return
         }
-      } else if (typeof item === "string") {
-        // If it's just a string, assume alternating pattern starting with customer
-        speaker = index % 2 === 0 ? "customer" : "ai_agent"
-        message = item
       }
 
-      console.log(`Extracted - Speaker: ${speaker}, Message: ${message}`)
-
-      if (!speaker || !message) {
-        console.log("Skipping invalid message:", item)
-        return
-      }
+      if (!speaker || !message) return
 
       if (speaker === "customer") {
-        if (currentGroup) {
-          groups.push(currentGroup)
-        }
+        if (currentGroup) groups.push(currentGroup)
         currentGroup = {
           customerMessage: message,
           agentMessages: [],
@@ -108,98 +90,69 @@ export default function ConversationFlow() {
       }
     })
 
-    if (currentGroup) {
-      groups.push(currentGroup)
-    }
-
-    console.log("Final processed groups:", groups)
+    if (currentGroup) groups.push(currentGroup)
     return groups
   }, [selectedConversation])
 
+  /* ---------- interaction selection ---------- */
+  const [selectedInteractionIndex, setSelectedInteractionIndex] = useState(0)
+
+  /* reset interaction index when conversation changes */
+  useEffect(() => setSelectedInteractionIndex(0), [selectedConversationIndex])
+
   const selectedInteraction = groupedInteractions[selectedInteractionIndex]
 
-  const handleSelect = (index) => {
-    setSelectedInteractionIndex(index)
+  /* ---------- handlers ---------- */
+  const handleConversationSelect = (idx: number) => {
+    const conv = conversations[idx]
+    if (conv?.session_id) setSessionIdInUrl(conv.session_id)
   }
 
-  const handleConversationChange = (index) => {
-    setSelectedConversationIndex(index)
-    setSelectedInteractionIndex(0)
+  const handlePrevConv = () => {
+    if (selectedConversationIndex > 0) setSessionIdInUrl(conversations[selectedConversationIndex - 1].session_id)
+  }
+  const handleNextConv = () => {
+    if (selectedConversationIndex < conversations.length - 1)
+      setSessionIdInUrl(conversations[selectedConversationIndex + 1].session_id)
   }
 
-  const handlePreviousConversation = () => {
-    if (selectedConversationIndex > 0) {
-      setSelectedConversationIndex(selectedConversationIndex - 1)
-      setSelectedInteractionIndex(0)
+  /* ---------- initial URL when none present ---------- */
+  useEffect(() => {
+    if (!urlSessionId && conversations[0]?.session_id) {
+      setSessionIdInUrl(conversations[0].session_id)
     }
-  }
+  }, [urlSessionId, conversations])
 
-  const handleNextConversation = () => {
-    if (selectedConversationIndex < conversations.length - 1) {
-      setSelectedConversationIndex(selectedConversationIndex + 1)
-      setSelectedInteractionIndex(0)
-    }
-  }
+  /* ---------- loading / error ---------- */
+  if (loading) return <p className="p-8 text-center">Loading conversations…</p>
+  if (error) return <p className="p-8 text-center text-red-500">{error}</p>
+  if (!conversations.length) return <p className="p-8 text-center">No data.</p>
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading conversations...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 mb-2">Error loading conversations:</p>
-          <p className="text-muted-foreground">{error}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (conversations.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">No conversations found with conversation_history data.</p>
-          <p className="text-xs text-muted-foreground mt-2">Check the browser console for debugging information.</p>
-        </div>
-      </div>
-    )
-  }
-
+  /* ---------- UI ---------- */
   return (
     <div className="relative">
       <ConversationSelector
         conversations={conversations}
         selectedIndex={selectedConversationIndex}
-        onSelect={handleConversationChange}
+        onSelect={handleConversationSelect}
       />
 
       <VerticalTimeline
         interactions={groupedInteractions}
         selectedIndex={selectedInteractionIndex}
-        onSelect={handleSelect}
+        onSelect={setSelectedInteractionIndex}
       />
 
       <AnimatePresence mode="wait">
         <InteractionPage
           key={`${selectedConversationIndex}-${selectedInteractionIndex}`}
           interaction={selectedInteraction}
-          onPrevious={() => setSelectedInteractionIndex(Math.max(0, selectedInteractionIndex - 1))}
-          onNext={() =>
-            setSelectedInteractionIndex(Math.min(groupedInteractions.length - 1, selectedInteractionIndex + 1))
-          }
+          onPrevious={() => setSelectedInteractionIndex((i) => Math.max(0, i - 1))}
+          onNext={() => setSelectedInteractionIndex((i) => Math.min(groupedInteractions.length - 1, i + 1))}
           hasPrevious={selectedInteractionIndex > 0}
           hasNext={selectedInteractionIndex < groupedInteractions.length - 1}
-          onPreviousConversation={handlePreviousConversation}
-          onNextConversation={handleNextConversation}
+          onPreviousConversation={handlePrevConv}
+          onNextConversation={handleNextConv}
           hasPreviousConversation={selectedConversationIndex > 0}
           hasNextConversation={selectedConversationIndex < conversations.length - 1}
         />
