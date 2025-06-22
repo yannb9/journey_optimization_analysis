@@ -2,7 +2,6 @@
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   Hash,
   Clock,
@@ -15,9 +14,7 @@ import {
   Zap,
   BarChart3,
   Timer,
-  Package,
 } from "lucide-react"
-import { useState } from "react"
 
 const cardVariants = {
   initial: {
@@ -48,8 +45,6 @@ export default function InteractionDetailsCard({
   interactionNumber,
   conversationData,
 }: InteractionDetailsCardProps) {
-  const [selectedBatch, setSelectedBatch] = useState<{ title: string; data: any } | null>(null)
-
   const getStatusConfig = (status) => {
     switch (status?.toLowerCase()) {
       case "success":
@@ -90,8 +85,8 @@ export default function InteractionDetailsCard({
         if (typeof journey === "object" && journey !== null) {
           if (journey.title) return journey.title
           if (journey.name) return journey.name
-          // If it's an object but no title/name, return the journey as string
-          return String(journey)
+          // If it's an object but no title/name, stringify it
+          return JSON.stringify(journey)
         }
         // If it's a primitive value, convert to string
         return String(journey)
@@ -106,7 +101,7 @@ export default function InteractionDetailsCard({
     if (typeof journeys === "object" && journeys !== null) {
       if (journeys.title) return journeys.title
       if (journeys.name) return journeys.name
-      return String(journeys)
+      return JSON.stringify(journeys)
     }
 
     return String(journeys)
@@ -119,22 +114,6 @@ export default function InteractionDetailsCard({
     }
     return String(time)
   }
-
-  const formatBatchData = (data) => {
-    if (!data) return null
-    if (typeof data === "string") {
-      try {
-        return JSON.parse(data)
-      } catch {
-        return data
-      }
-    }
-    return data
-  }
-
-  const hasBatch1 = conversationData?.batch_1_data
-  const hasBatch2 =
-    conversationData?.batch_2_data && conversationData.batch_2_data !== "" && conversationData.batch_2_data !== null
 
   return (
     <div className="fixed right-4 top-1/2 transform -translate-y-1/2 w-80">
@@ -236,58 +215,6 @@ export default function InteractionDetailsCard({
                   <p className="text-sm font-medium">{conversationData?.batch_generations_count || "0"}</p>
                 </div>
               </div>
-
-              {/* Batch Data */}
-              {(hasBatch1 || hasBatch2) && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md border bg-muted flex items-center justify-center">
-                    <Package className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Batch Data</p>
-                    <div className="flex gap-2 mt-1">
-                      {hasBatch1 && (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <button className="w-8 h-8 rounded-lg border-2 border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20 transition-colors flex items-center justify-center text-xs font-semibold text-blue-600">
-                              1
-                            </button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>Batch 1 Data</DialogTitle>
-                            </DialogHeader>
-                            <div className="mt-4">
-                              <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto whitespace-pre-wrap">
-                                {JSON.stringify(formatBatchData(conversationData.batch_1_data), null, 2)}
-                              </pre>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                      {hasBatch2 && (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <button className="w-8 h-8 rounded-lg border-2 border-green-500/50 bg-green-500/10 hover:bg-green-500/20 transition-colors flex items-center justify-center text-xs font-semibold text-green-600">
-                              2
-                            </button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>Batch 2 Data</DialogTitle>
-                            </DialogHeader>
-                            <div className="mt-4">
-                              <pre className="bg-muted p-4 rounded-lg text-sm overflow-auto whitespace-pre-wrap">
-                                {JSON.stringify(formatBatchData(conversationData.batch_2_data), null, 2)}
-                              </pre>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Running Time */}
               <div className="flex items-center gap-3">
