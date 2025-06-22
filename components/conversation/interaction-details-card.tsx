@@ -2,6 +2,8 @@
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   Hash,
   Clock,
@@ -14,7 +16,9 @@ import {
   Zap,
   BarChart3,
   Timer,
+  Database,
 } from "lucide-react"
+import { useState } from "react"
 
 const cardVariants = {
   initial: {
@@ -45,6 +49,9 @@ export default function InteractionDetailsCard({
   interactionNumber,
   conversationData,
 }: InteractionDetailsCardProps) {
+  const [selectedBatch, setSelectedBatch] = useState<{ name: string; data: any } | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+
   const getStatusConfig = (status) => {
     switch (status?.toLowerCase()) {
       case "success":
@@ -113,6 +120,40 @@ export default function InteractionDetailsCard({
       return `${time}s`
     }
     return String(time)
+  }
+
+  const formatBatchData = (data) => {
+    if (!data) return "No data available"
+
+    if (typeof data === "string") {
+      try {
+        // Try to parse if it's a JSON string
+        const parsed = JSON.parse(data)
+        return JSON.stringify(parsed, null, 2)
+      } catch {
+        return data
+      }
+    }
+
+    if (typeof data === "object") {
+      return JSON.stringify(data, null, 2)
+    }
+
+    return String(data)
+  }
+
+  const handleBatchClick = (batch: { name: string; data: any }) => {
+    setSelectedBatch(batch)
+    setIsDialogOpen(true)
+  }
+
+  // Get available batch data
+  const batchData = []
+  if (conversationData?.batch_1_data) {
+    batchData.push({ name: "Batch 1", data: conversationData.batch_1_data })
+  }
+  if (conversationData?.batch_2_data) {
+    batchData.push({ name: "Batch 2", data: conversationData.batch_2_data })
   }
 
   return (
@@ -216,6 +257,35 @@ export default function InteractionDetailsCard({
                 </div>
               </div>
 
+              {/* Batches */}
+              {batchData.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-md border bg-muted flex items-center justify-center flex-shrink-0">
+                    <Database className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">Batches</p>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {batchData.map((batch, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          className={`text-xs w-8 h-8 p-0 font-semibold ${
+                            index === 0
+                              ? "bg-blue-500 hover:bg-blue-400 text-white border-blue-500"
+                              : "bg-green-500 hover:bg-green-400 text-white border-green-500"
+                          }`}
+                          onClick={() => handleBatchClick(batch)}
+                        >
+                          {index + 1}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Running Time */}
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md border bg-muted flex items-center justify-center">
@@ -230,6 +300,21 @@ export default function InteractionDetailsCard({
           </Card>
         </motion.div>
       </AnimatePresence>
+
+      {/* Batch Data Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Batch {selectedBatch?.name.split(" ")[1]} Data</DialogTitle>
+            <DialogDescription>Detailed batch data for this interaction</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 overflow-auto max-h-[60vh]">
+            <pre className="text-xs bg-muted p-4 rounded-md whitespace-pre-wrap break-words">
+              {selectedBatch ? formatBatchData(selectedBatch.data) : "No data available"}
+            </pre>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
