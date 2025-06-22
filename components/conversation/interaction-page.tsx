@@ -63,7 +63,7 @@ export default function InteractionPage({
         >
           <div className="w-full">
             {/* Conversation Content */}
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Customer Message */}
               <div className="space-y-1">
                 <h3 className="text-sm font-semibold text-primary">Customer</h3>
@@ -72,7 +72,7 @@ export default function InteractionPage({
 
               {/* Agent Messages */}
               {interaction.agentMessages.map((message, index) => (
-                <div key={index} className="space-y-2">
+                <div key={index} className="space-y-1.5">
                   <h3 className="text-sm font-semibold text-muted-foreground">AI Agent</h3>
                   <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{message}</p>
                 </div>
